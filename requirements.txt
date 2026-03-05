@@ -1,0 +1,4 @@
+twitchio>=2.10
+anthropic>=0.40
+pygame
+requests
