@@ -1,0 +1,27 @@
+You need to add a config.py to the project. It should look like this:
+
+import os
+
+# ── Twitch credentials ──
+TWITCH_ACCESS_TOKEN = ""   # Your Twitch OAuth token
+TWITCH_CHANNEL = ""        # The channel the bot should join
+
+# ── Anthropic (Claude) ──
+ANTHROPIC_API_KEY = ""     # Your Anthropic API key
+
+# ── Bot settings ──
+KENJI_COOLDOWN = 600  # Seconds between replies (600 = 10 minutes)
+
+# ── TTS settings ──
+TTS_ENABLED = False  # Set to False to disable TTS entirely (chat replies still work)
+
+# ── TTS (ElevenLabs – custom cloned voice) ──
+ELEVENLABS_API_KEY = ""    # Your ElevenLabs API key
+ELEVENLABS_VOICE_ID = ""   # Voice ID from your cloned voice on ElevenLabs
+ELEVENLABS_MODEL = "eleven_turbo_v2"  # Cheapest model – works with pre-made library voices (not clones)
+
+# ── TTS fallback (StreamElements – preset voices) ──
+# TTS_VOICE = "Brian"      # Uncomment to use StreamElements instead
+
+# Path to the Kenji system prompt file
+PROMPT_FILE = os.path.join(os.path.dirname(__file__), "Kenji_bot_prompt.txt")
