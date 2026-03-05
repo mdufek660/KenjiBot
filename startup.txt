@@ -25,3 +25,17 @@ ELEVENLABS_MODEL = "eleven_turbo_v2"  # Cheapest model – works with pre-made l
 
 # Path to the Kenji system prompt file
 PROMPT_FILE = os.path.join(os.path.dirname(__file__), "Kenji_bot_prompt.txt")
+
+── How to get your tokens ──
+
+1. Twitch OAuth token: Go to https://twitchapps.com/tmi/ and connect with your bot's Twitch account.
+2. Anthropic API key: Get one at https://console.anthropic.com/
+3. ElevenLabs API key & Voice ID: Sign up at https://elevenlabs.io/, grab your API key from profile settings, and the Voice ID from your chosen voice's settings.
+
+── How to run ──
+
+1. Create a virtual environment:  python -m venv venv
+2. Activate it:                   venv\Scripts\activate  (Windows)  or  source venv/bin/activate  (Mac/Linux)
+3. Install dependencies:          pip install -r requirements.txt
+4. Create config.py with the template above and fill in your keys.
+5. Run the bot:                   python bot.py
