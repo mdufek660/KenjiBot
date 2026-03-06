@@ -47,6 +47,40 @@ class ClaudeClient:
 
         return reply
 
+    async def get_stream_reaction(self, transcription: str) -> str:
+        """Send overheard stream audio transcription to Claude for a Kenji reaction.
+
+        Args:
+            transcription: The transcribed text from stream audio.
+
+        Returns:
+            Kenji's reaction to what he overheard.
+        """
+        user_message = (
+            f"[You just overheard the following on the stream]: {transcription}\n"
+            f"React to what you heard as Kenji would. You are eavesdropping and "
+            f"commenting on what you heard. Keep it brief."
+        )
+
+        response = await self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=100,
+            system=self.system_prompt,
+            messages=[
+                {"role": "user", "content": user_message},
+            ],
+        )
+
+        reply = response.content[0].text
+
+        if response.stop_reason == "max_tokens":
+            reply = self._trim_to_last_sentence(reply)
+
+        if len(reply) > 500:
+            reply = reply[:497] + "..."
+
+        return reply
+
     @staticmethod
     def _trim_to_last_sentence(text: str) -> str:
         """Trim text to the last sentence that ends with punctuation."""

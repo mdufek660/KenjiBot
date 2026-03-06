@@ -7,6 +7,7 @@ from twitchio.ext import commands
 import config
 from claude_client import ClaudeClient
 import tts
+import stream_listener
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,16 +26,21 @@ class KenjiBot(commands.Bot):
             initial_channels=[config.TWITCH_CHANNEL],
         )
         self.claude = ClaudeClient()
-        self._last_reply_time: float = 0.0  # timestamp of last reply
-        self._ready_announced: bool = True  # whether we've announced readiness
+        self._last_reply_time: float = 0.0    # timestamp of last reply
+        self._last_listen_time: float = 0.0   # timestamp of last listen cycle
+        self._bot_start_time: float = 0.0     # timestamp of when bot connected
+        self._ready_announced: bool = True    # whether we've announced readiness
 
     async def event_ready(self):
         logger.info("Logged in as %s", self.nick)
         logger.info("Connected to channel: %s", config.TWITCH_CHANNEL)
+        self._bot_start_time = time.time()
         # Send a greeting to chat on connect
         channel = self.get_channel(config.TWITCH_CHANNEL)
         if channel:
             await channel.send("Never fear, KenjiBot is here!")
+        # Start stream listener loop (checks config.STREAM_LISTEN_ENABLED each cycle)
+        asyncio.create_task(self._stream_listen_loop())
 
     async def event_message(self, message):
         # Ignore messages sent by the bot itself
@@ -74,8 +80,9 @@ class KenjiBot(commands.Bot):
             reply = await self.claude.get_response(user_name, message_text)
             logger.info("Kenji reply: %s", reply)
 
-            # Send reply to chat (DEBUG – remove later) and play TTS
-            await ctx.send(reply)
+            # Send reply to chat if enabled, and play TTS
+            if config.CHAT_REPLIES_ENABLED:
+                await ctx.send(reply)
             await tts.speak(reply)
 
             # Mark cooldown and schedule the ready announcement
@@ -94,6 +101,40 @@ class KenjiBot(commands.Bot):
             channel = self.get_channel(config.TWITCH_CHANNEL)
             if channel:
                 await channel.send("*adjusts glasses* Ready for another comment or question")
+
+    async def _stream_listen_loop(self):
+        """Background loop: record system audio, transcribe, and react."""
+        logger.info("Stream listener loop started (every %ds, recording %ds)",
+                     config.LISTEN_INTERVAL, config.LISTEN_DURATION)
+        while True:
+            try:
+                # Sleep in 1-second increments so GUI changes take effect immediately
+                waited = 0
+                while waited < config.LISTEN_INTERVAL:
+                    await asyncio.sleep(1)
+                    waited += 1
+
+                # Check if listener is still enabled (can be toggled via GUI)
+                if not config.STREAM_LISTEN_ENABLED:
+                    logger.info("Stream listener disabled, skipping cycle.")
+                    continue
+
+                logger.info("Stream listener woke up, starting listen cycle...")
+                self._last_listen_time = time.time()
+                transcription = await stream_listener.listen_and_transcribe()
+                if not transcription:
+                    continue
+
+                logger.info("Stream heard: %s", transcription[:200])
+                reaction = await self.claude.get_stream_reaction(transcription)
+                logger.info("Kenji stream reaction: %s", reaction)
+
+                channel = self.get_channel(config.TWITCH_CHANNEL)
+                if channel and config.CHAT_REPLIES_ENABLED:
+                    await channel.send(reaction)
+                    await tts.speak(reaction)
+            except Exception:
+                logger.exception("Error in stream listen loop")
 
 
 def main():
