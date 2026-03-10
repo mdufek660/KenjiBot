@@ -9,6 +9,8 @@ from claude_client import ClaudeClient
 import tts
 import stream_listener
 
+# C:\Python39\python.exe -m PyInstaller --clean -y KenjiBot.spec
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(name)-18s  %(levelname)-8s  %(message)s",
@@ -38,7 +40,7 @@ class KenjiBot(commands.Bot):
         # Send a greeting to chat on connect
         channel = self.get_channel(config.TWITCH_CHANNEL)
         if channel:
-            await channel.send("Never fear, KenjiBot is here!")
+            await channel.send(config.ANNOUNCEMENT_MESSAGE)
         # Start stream listener loop (checks config.STREAM_LISTEN_ENABLED each cycle)
         asyncio.create_task(self._stream_listen_loop())
 
@@ -46,43 +48,55 @@ class KenjiBot(commands.Bot):
         # Ignore messages sent by the bot itself
         if message.echo:
             return
+
+        # Dynamic command matching using config.BOT_COMMAND
+        content = message.content or ""
+        command_trigger = f"!{config.BOT_COMMAND} "
+        if content.startswith(command_trigger) or content.strip() == f"!{config.BOT_COMMAND}":
+            await self._handle_ask_command(message)
+            return
+
         await self.handle_commands(message)
 
-    @commands.command(name="Kenji")
-    async def kenji_command(self, ctx: commands.Context):
-        """Handle !Kenji <message> commands."""
-        # ── Global cooldown check (10 min between replies) ──
+    async def _handle_ask_command(self, message):
+        """Handle !AskBot <message> commands (command name set in config.BOT_COMMAND)."""
+        channel = self.get_channel(config.TWITCH_CHANNEL)
+
+        # ── Global cooldown check ──
         now = time.time()
         elapsed = now - self._last_reply_time
         if elapsed < config.KENJI_COOLDOWN:
             remaining = int(config.KENJI_COOLDOWN - elapsed)
             mins, secs = divmod(remaining, 60)
-            await ctx.send(
-                f"Hold on, I need to recover after that last interaction... "
-                f"({mins}m {secs}s remaining)"
-            )
+            if channel:
+                await channel.send(
+                    f"Hold on, I need to recover after that last interaction... "
+                    f"({mins}m {secs}s remaining)"
+                )
             return
 
-        user_message = ctx.message.content
-        # Strip the command prefix + command name to get the actual message
-        # e.g. "!Kenji hello there" -> "hello there"
-        prefix_len = len("!Kenji ")
-        if len(user_message) <= prefix_len:
-            await ctx.send("You need to say something to Kenji! Usage: !Kenji <message>")
+        content = message.content or ""
+        command_trigger = f"!{config.BOT_COMMAND} "
+        prefix_len = len(command_trigger)
+        if len(content) <= prefix_len:
+            if channel:
+                await channel.send(
+                    f"You need to say something! Usage: !{config.BOT_COMMAND} <message>"
+                )
             return
 
-        message_text = user_message[prefix_len:]
-        user_name = ctx.author.display_name
+        message_text = content[prefix_len:]
+        user_name = message.author.display_name
 
         logger.info("Message from %s: %s", user_name, message_text)
 
         try:
             reply = await self.claude.get_response(user_name, message_text)
-            logger.info("Kenji reply: %s", reply)
+            logger.info("Reply: %s", reply)
 
             # Send reply to chat if enabled, and play TTS
-            if config.CHAT_REPLIES_ENABLED:
-                await ctx.send(reply)
+            if config.CHAT_REPLIES_ENABLED and channel:
+                await channel.send(reply)
             await tts.speak(reply)
 
             # Mark cooldown and schedule the ready announcement
@@ -90,8 +104,11 @@ class KenjiBot(commands.Bot):
             self._ready_announced = False
             asyncio.create_task(self._announce_ready())
         except Exception:
-            logger.exception("Error handling !Kenji command")
-            await ctx.send("Kenji is... unavailable right now. The feminists may be jamming his signal.")
+            logger.exception("Error handling !%s command", config.BOT_COMMAND)
+            if channel:
+                await channel.send(
+                    "Kenji is... unavailable right now. The feminists may be jamming his signal."
+                )
 
     async def _announce_ready(self):
         """Wait for the cooldown to expire, then announce readiness in chat."""

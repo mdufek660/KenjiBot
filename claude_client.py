@@ -12,7 +12,11 @@ class ClaudeClient:
     @staticmethod
     def _load_prompt() -> str:
         with open(config.PROMPT_FILE, "r", encoding="utf-8") as f:
-            return f.read().strip()
+            prompt = f.read().strip()
+        # Inject the current Twitch channel name and description into the prompt
+        prompt = prompt.replace("{TWITCH_CHANNEL}", config.TWITCH_CHANNEL)
+        prompt = prompt.replace("{TWITCH_DESCRIPTION}", config.TWITCH_DESCRIPTION)
+        return prompt
 
     async def get_response(self, user_name: str, message: str) -> str:
         """Send a chatter's message to Claude and return Kenji's reply.
