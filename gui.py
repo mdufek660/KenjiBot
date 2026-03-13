@@ -31,7 +31,7 @@ class QueueLogHandler(logging.Handler):
 class KenjiBotGUI:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("KenjiBot Control Panel")
+        self.root.title(f"KenjiBot Control Panel — {config.TWITCH_CHANNEL}")
         self.root.geometry("700x880")
         self.root.resizable(False, False)
         self.root.configure(bg="#1a1a2e")
@@ -397,6 +397,7 @@ class KenjiBotGUI:
             logging.getLogger("kenji.gui").info("Prompt file set to: %s", prompt_path)
         elif prompt_path:
             logging.getLogger("kenji.gui").warning("Prompt file not found: %s", prompt_path)
+        self.root.title(f"KenjiBot Control Panel — {new_channel}")
         logging.getLogger("kenji.gui").info("Twitch channel set to: %s", new_channel)
         logging.getLogger("kenji.gui").info("Streamer description: %s", config.TWITCH_DESCRIPTION)
 
@@ -437,6 +438,7 @@ class KenjiBotGUI:
         config.TWITCH_DESCRIPTION = self.desc_var.get().strip()
         config.BOT_COMMAND = self.command_var.get().strip() or "AskBot"
         config.ANNOUNCEMENT_MESSAGE = self.announce_var.get().strip()
+        self.root.title(f"KenjiBot Control Panel — {config.TWITCH_CHANNEL}")
         prompt_path = self.prompt_var.get().strip()
         if prompt_path and os.path.isfile(prompt_path):
             config.PROMPT_FILE = prompt_path
